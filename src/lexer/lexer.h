@@ -13,6 +13,7 @@ enum Token {
     tok_end,
     tok_program,
     tok_const,
+    tok_def,
 
     // types
     tok_real,
@@ -21,9 +22,6 @@ enum Token {
     // primary
     tok_identifier,
     tok_number,
-
-    // symbols
-    tok_assignment,  // :=
 };
 
 extern int CurTok;
@@ -31,5 +29,7 @@ extern std::string IdentifierStr;
 extern double NumVal;
 
 int gettok();
+
+int getNextToken();
 
 #endif

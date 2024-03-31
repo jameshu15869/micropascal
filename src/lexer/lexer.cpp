@@ -1,8 +1,12 @@
-#include "lexer.h"
+#include "lexer/lexer.h"
 
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+
+int CurTok;
+std::string IdentifierStr;
+double NumVal;
 
 int gettok() {
     static int LastChar = ' ';
@@ -17,6 +21,9 @@ int gettok() {
             IdentifierStr += LastChar;
         }
 
+        if (IdentifierStr == "def") {
+            return tok_def;
+        }
         if (IdentifierStr == "var") {
             return tok_var;
         }
@@ -56,15 +63,20 @@ int gettok() {
     if (LastChar == '#') {
         do {
             LastChar = std::getchar();
-        } while (LastChar != EOF && LastChar != '\n' &&
-                 LastChar != '\r');
+        } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
 
         if (LastChar != EOF) {
             return gettok();
         }
     }
 
+    if (LastChar == EOF) {
+        return tok_eof;
+    }
+
     int ThisChar = LastChar;
-    LastChar = getchar();  // We must go to the next token
-    return ThisChar;
+    LastChar = getchar();
+    return ThisChar;  // Return as ASCII
 }
+
+int getNextToken() { return CurTok = gettok(); }
