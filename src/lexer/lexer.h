@@ -22,6 +22,9 @@ enum Token {
     // primary
     tok_identifier,
     tok_number,
+
+    // symbols
+    tok_period,
 };
 
 extern int CurTok;

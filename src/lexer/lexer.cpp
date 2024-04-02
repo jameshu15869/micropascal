@@ -3,6 +3,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 
 int CurTok;
 std::string IdentifierStr;
@@ -49,7 +50,13 @@ int gettok() {
         return tok_identifier;
     }
 
-    if (std::isdigit(LastChar) || LastChar == '.') {
+    // Check for lone period
+    if (LastChar == '.') {
+        LastChar = getchar(); // need to skip this token?
+        return tok_period;
+    }
+
+    if (std::isdigit(LastChar)) {
         std::string NumStr;
         do {
             NumStr += LastChar;

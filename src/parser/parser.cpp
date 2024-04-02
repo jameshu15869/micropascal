@@ -1,5 +1,7 @@
 #include "parser/parser.h"
 
+#include <cassert>
+
 #include "lexer/lexer.h"
 #include "logger/logger.h"
 
@@ -144,8 +146,8 @@ std::unique_ptr<PrototypeAST> ParsePrototype() {
     }
 
     std::string FnName = IdentifierStr;
-    getNextToken(); // FnName
-    
+    getNextToken();  // FnName
+
     if (CurTok != '(') {
         return LogErrorP("Expected '(' in function prototype");
     }
@@ -160,13 +162,13 @@ std::unique_ptr<PrototypeAST> ParsePrototype() {
         return LogErrorP("Expected ')' in function prototype");
     }
 
-    getNextToken(); // )
+    getNextToken();  // )
 
     return std::make_unique<PrototypeAST>(FnName, std::move(ArgNames));
 }
 
-std::unique_ptr<ExprAST> ParseDefinition() {
-    getNextToken(); // eat def
+std::unique_ptr<FunctionAST> ParseDefinition() {
+    getNextToken();  // eat def
     auto Proto = ParsePrototype();
 
     if (!Proto) {
@@ -179,9 +181,119 @@ std::unique_ptr<ExprAST> ParseDefinition() {
     return nullptr;
 }
 
-std::unique_ptr<ExprAST> ParseTopLevelExpr() {
+std::unique_ptr<DeclarationAST> ParseDeclarations() {
+    // assert(false && "NOT IMPLEMENTED: ParseDeclarations");
+    return std::make_unique<DeclarationAST>(
+        std::vector<std::unique_ptr<VariableDeclAST>>());
+}
+
+std::unique_ptr<StatementAST> ParseStatement() {
+    if (CurTok == tok_identifier) {
+        std::string Identifier = IdentifierStr;
+        getNextToken();  // eat identifier name
+        if (CurTok == '(') {
+            // we are parsing a function
+            getNextToken();  // (
+            std::vector<std::unique_ptr<ExprAST>> Args;
+            if (CurTok != ')') {
+                while (true) {
+                    if (auto Arg = ParseExpression()) {
+                        Args.push_back(std::move(Arg));
+                    } else {
+                        return nullptr;
+                    }
+
+                    if (CurTok == ')') {
+                        break;
+                    }
+
+                    if (CurTok != ',') {
+                        LogError("Expected ')' or ',' in argument list");
+                        return nullptr;
+                    }
+                    getNextToken();  // ,
+                }
+            }
+
+            getNextToken(); // )
+            return std::make_unique<StatementCallExprAST>(Identifier, std::move(Args));
+        }
+    }
+
+    return nullptr;
+}
+
+std::unique_ptr<BlockAST> ParseBlock() {
+    auto DeclarationAST = ParseDeclarations();
+    if (!DeclarationAST) {
+        LogError("Failed to parse block declaration");
+        return nullptr;
+    }
+    if (CurTok != tok_begin) {
+        LogError("Expected 'begin'");
+        return nullptr;
+    }
+    getNextToken();  // begin
+
+    std::vector<std::unique_ptr<StatementAST>> Statements;
+    auto S = ParseStatement();
+    if (!S) {
+        LogError("Failed to parse statement in block");
+        return nullptr;
+    }
+    if (CurTok != ';') {
+        LogError("Expected ';' after statement in block");
+        return nullptr;
+    }
+    getNextToken(); // eat ';'
+    Statements.push_back(std::move(S));
+
+    if (CurTok != tok_end) {
+        LogError("Expected 'end'");
+        return nullptr;
+    }
+
+    getNextToken();  // end
+
+    return std::make_unique<BlockAST>(
+        std::move(DeclarationAST),
+        std::move(Statements));
+}
+
+std::unique_ptr<ProgramAST> ParseProgram() {
+    getNextToken();  // program
+    std::string ProgramName;
+    if (CurTok == tok_identifier) {
+        ProgramName = IdentifierStr;
+        getNextToken();  // eat program name
+    } else {
+        LogError("Expected a program name");
+        return nullptr;
+    }
+
+    if (CurTok != ';') {
+        LogError("Expected a semicolon after program name");
+        return nullptr;
+    }
+    getNextToken();  // ;
+
+    auto Block = ParseBlock();
+    if (!Block) {
+        return nullptr;
+    }
+
+    if (CurTok != tok_period) {
+        LogError("Expected '.' at the end of the program");
+        return nullptr;
+    }
+
+    return std::make_unique<ProgramAST>(ProgramName, std::move(Block));
+}
+
+std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
     if (auto E = ParseExpression()) {
-        auto Proto = std::make_unique<PrototypeAST>("", std::vector<std::string>());
+        auto Proto =
+            std::make_unique<PrototypeAST>("", std::vector<std::string>());
         return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
     }
     return nullptr;
