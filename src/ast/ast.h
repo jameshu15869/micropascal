@@ -9,7 +9,10 @@
 class AST {
    public:
     virtual ~AST() = default;
-    virtual void PrintAST() {};
+    virtual void PrintAST(int numIndents) {};
+    void PrintIndents(int numIndents) {
+        std::cerr << std::string(numIndents, ' ');
+    }
 };
 
 class ExprAST : public AST {
@@ -22,7 +25,10 @@ class NumberExprAST : public ExprAST {
 
    public:
     NumberExprAST(double Val) : Val(Val) {}
-    void PrintAST() { std::cerr << Val << " "; }
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
+        std::cerr << Val << '\n';
+    }
 };
 
 class VariableExprAST : public ExprAST {
@@ -30,7 +36,10 @@ class VariableExprAST : public ExprAST {
 
    public:
     VariableExprAST(const std::string &Name) : Name(Name) {}
-    void PrintAST() { std::cerr << Name << " "; }
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
+        std::cerr << Name << '\n';
+    }
 };
 
 class BinaryExprAST : public ExprAST {
@@ -42,11 +51,11 @@ class BinaryExprAST : public ExprAST {
     BinaryExprAST(char Op, std::unique_ptr<ExprAST> LHS,
                   std::unique_ptr<ExprAST> RHS)
         : Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
-    void PrintAST() {
-        std::cerr << "(" << Op << " ";
-        LHS->PrintAST();
-        RHS->PrintAST();
-        std::cerr << ") ";
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
+        std::cerr << Op << '\n';
+        LHS->PrintAST(numIndents + 1);
+        RHS->PrintAST(numIndents + 1);
     }
 };
 
@@ -57,7 +66,13 @@ class CallExprAST : public ExprAST {
    public:
     CallExprAST(std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args)
         : Callee(Callee), Args(std::move(Args)) {}
-    void PrintAST() {}
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
+        std::cerr << "Called: " << Callee << '\n';
+        for (auto &Arg : Args) {
+            Arg->PrintAST(numIndents + 1);
+        }
+    }
 };
 
 class StatementAST : public AST {};
@@ -70,13 +85,14 @@ class StatementCallExprAST : public StatementAST {
     std::vector<std::unique_ptr<ExprAST>> Args;
 
    public:
-    StatementCallExprAST(std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args)
+    StatementCallExprAST(std::string &Callee,
+                         std::vector<std::unique_ptr<ExprAST>> Args)
         : Callee(Callee), Args(std::move(Args)) {}
-    void PrintAST() {
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
         std::cerr << "Statement Call: " << Callee << "\n";
         for (auto &Arg : Args) {
-            Arg->PrintAST();
-            std::cerr << "\n";
+            Arg->PrintAST(numIndents + 1);
         }
     }
 };
@@ -91,7 +107,10 @@ class PrototypeAST : public AST {
 
     const std::string &getName() const { return Name; }
 
-    void PrintAST() { std::cerr << "Fn: " << Name << " "; }
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
+        std::cerr << "Fn: " << Name << " ";
+    }
 };
 
 class FunctionAST : public AST {
@@ -102,11 +121,10 @@ class FunctionAST : public AST {
     FunctionAST(std::unique_ptr<PrototypeAST> Proto,
                 std::unique_ptr<ExprAST> Body)
         : Proto(std::move(Proto)), Body(std::move(Body)) {}
-    void PrintAST() {
-        std::cerr << "(";
-        Proto->PrintAST();
-        Body->PrintAST();
-        std::cerr << ") ";
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
+        Proto->PrintAST(numIndents + 1);
+        Body->PrintAST(numIndents + 1);
     }
 };
 
@@ -129,11 +147,12 @@ class BlockAST : public AST {
              std::vector<std::unique_ptr<StatementAST>> Statements)
         : Declaration(std::move(Declaration)),
           Statements(std::move(Statements)) {}
-    void PrintAST() {
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
         std::cerr << "Block\n";
-        Declaration->PrintAST();
+        Declaration->PrintAST(numIndents + 1);
         for (auto &Statement : Statements) {
-            Statement->PrintAST();
+            Statement->PrintAST(numIndents + 1);
         }
         std::cerr << "End block\n";
     }
@@ -146,9 +165,10 @@ class ProgramAST : public AST {
    public:
     ProgramAST(std::string &Name, std::unique_ptr<BlockAST> Block)
         : Name(Name), Block(std::move(Block)) {}
-    void PrintAST() {
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
         std::cerr << "Program: " << Name << "\n";
-        Block->PrintAST();
+        Block->PrintAST(numIndents + 1);
         std::cerr << "\n";
     }
 };

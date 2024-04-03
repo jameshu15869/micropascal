@@ -12,7 +12,7 @@ void HandleDefinition() {
 void HandleProgram() {
     if (auto P = ParseProgram()) {
         fprintf(stderr, "Parsed a program.\n");
-        P->PrintAST();
+        P->PrintAST(0);
         std::cerr << "\n";
     } else {
         getNextToken();
@@ -21,7 +21,7 @@ void HandleProgram() {
 
 void HandleTopLevelExpression() {
     if (auto E = ParseTopLevelExpr()) {
-        E->PrintAST();
+        E->PrintAST(0);
         std::cerr << "\n";
         fprintf(stderr, "Parsed a top-level expr\n");
     } else {

@@ -215,8 +215,9 @@ std::unique_ptr<StatementAST> ParseStatement() {
                 }
             }
 
-            getNextToken(); // )
-            return std::make_unique<StatementCallExprAST>(Identifier, std::move(Args));
+            getNextToken();  // )
+            return std::make_unique<StatementCallExprAST>(Identifier,
+                                                          std::move(Args));
         }
     }
 
@@ -241,12 +242,21 @@ std::unique_ptr<BlockAST> ParseBlock() {
         LogError("Failed to parse statement in block");
         return nullptr;
     }
-    if (CurTok != ';') {
-        LogError("Expected ';' after statement in block");
-        return nullptr;
-    }
-    getNextToken(); // eat ';'
     Statements.push_back(std::move(S));
+
+    // Parse (; <statement>)? optional portion
+    while (CurTok == ';') {
+        getNextToken();  // eat ';'
+
+        if (CurTok == tok_end) {
+            // There are no more statements to parse
+            break;
+        }
+
+        if (auto S = ParseStatement()) {
+            Statements.push_back(std::move(S));
+        }
+    }
 
     if (CurTok != tok_end) {
         LogError("Expected 'end'");
@@ -255,9 +265,8 @@ std::unique_ptr<BlockAST> ParseBlock() {
 
     getNextToken();  // end
 
-    return std::make_unique<BlockAST>(
-        std::move(DeclarationAST),
-        std::move(Statements));
+    return std::make_unique<BlockAST>(std::move(DeclarationAST),
+                                      std::move(Statements));
 }
 
 std::unique_ptr<ProgramAST> ParseProgram() {
