@@ -182,8 +182,50 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 }
 
 std::unique_ptr<VariableDeclAST> ParseVariableDecl() {
-    assert(false && "NOT IMPLEMENTED: ParseVariableDecl");
-    return nullptr;
+    std::vector<std::string> VarNames;
+    if (CurTok != tok_identifier) {
+        LogError("Expected identifier in variable decl");
+        return nullptr;
+    }
+    VarNames.push_back(IdentifierStr);
+    getNextToken();  // First identifier
+    while (CurTok == ',') {
+        getNextToken();  // ,
+        if (CurTok != tok_identifier) {
+            LogError("Expected identifier in variable decl");
+            return nullptr;
+        }
+        VarNames.push_back(IdentifierStr);
+        getNextToken();  // identifier
+    }
+
+    if (CurTok != ':') {
+        LogError("Expected ':' after variable list in variable decl");
+        return nullptr;
+    }
+
+    getNextToken();  // :
+    VarType Type;
+    if (CurTok != tok_integer) {
+        LogError("Expected type identifier after variable list");
+        return nullptr;
+    }
+
+    if (IdentifierStr == "integer") {
+        Type = TYPE_INTEGER;
+    } else {
+        LogError("Unknown type identifier");
+        return nullptr;
+    }
+    getNextToken(); // type
+
+    if (CurTok != ';') {
+        LogError("Expected ';' after variable decl");
+        return nullptr;
+    }
+    getNextToken();  // ;
+
+    return std::make_unique<VariableDeclAST>(std::move(VarNames), Type);
 }
 
 std::unique_ptr<DeclarationAST> ParseDeclarations() {

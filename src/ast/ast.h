@@ -7,7 +7,7 @@
 #include <vector>
 
 enum VarType {
-    INTEGER,
+    TYPE_INTEGER,
 };
 
 class AST {
@@ -143,6 +143,7 @@ class VariableDeclAST : public AST {
         PrintIndents(NumIndents);
         std::cerr << "Variable Declaration Block: " << Type << '\n';
         for (auto &Name : VarNames) {
+            PrintIndents(NumIndents + 1);
             std::cerr << Name << " " << Type << '\n';
         }
     }
@@ -180,6 +181,7 @@ class BlockAST : public AST {
         for (auto &Statement : Statements) {
             Statement->PrintAST(NumIndents + 1);
         }
+        PrintIndents(NumIndents);
         std::cerr << "End block\n";
     }
 };
@@ -195,7 +197,8 @@ class ProgramAST : public AST {
         PrintIndents(NumIndents);
         std::cerr << "Program: " << Name << "\n";
         Block->PrintAST(NumIndents + 1);
-        std::cerr << "\n";
+        PrintIndents(NumIndents);
+        std::cerr << "End Program: " << Name << "\n";
     }
 };
 

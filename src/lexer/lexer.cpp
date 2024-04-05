@@ -50,9 +50,9 @@ int gettok() {
         return tok_identifier;
     }
 
-    // Check for lone period
+    // Check for lone period, since otherwise it gets parsed as a number
     if (LastChar == '.') {
-        LastChar = getchar(); // need to skip this token?
+        LastChar = getchar();  // need to skip this token?
         return tok_period;
     }
 
