@@ -302,15 +302,17 @@ std::unique_ptr<StatementAST> ParseStatement() {
         }
     }
 
+    if (CurTok == tok_begin) {
+        // We are parsing a nested begin
+        if (auto S = ParseCompoundStatement()) {
+            return std::move(S);
+        }
+    }
+
     return nullptr;
 }
 
-std::unique_ptr<BlockAST> ParseBlock() {
-    auto DeclarationAST = ParseDeclarations();
-    if (!DeclarationAST) {
-        LogError("Failed to parse block declaration");
-        return nullptr;
-    }
+std::unique_ptr<CompoundStatementAST> ParseCompoundStatement() {
     if (CurTok != tok_begin) {
         LogError("Expected 'begin'");
         return nullptr;
@@ -351,9 +353,23 @@ std::unique_ptr<BlockAST> ParseBlock() {
     }
 
     getNextToken();  // end
+    return std::make_unique<CompoundStatementAST>(std::move(Statements));
+}
+
+std::unique_ptr<BlockAST> ParseBlock() {
+    auto DeclarationAST = ParseDeclarations();
+    if (!DeclarationAST) {
+        LogError("Failed to parse block declaration");
+        return nullptr;
+    }
+    auto CompoundStatement = ParseCompoundStatement();
+    if (!CompoundStatement) {
+        LogError("Failed to parse compound statement in block");
+        return nullptr;
+    }
 
     return std::make_unique<BlockAST>(std::move(DeclarationAST),
-                                      std::move(Statements));
+                                      std::move(CompoundStatement));
 }
 
 std::unique_ptr<ProgramAST> ParseProgram() {

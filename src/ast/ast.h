@@ -182,24 +182,38 @@ class DeclarationAST : public AST {
     }
 };
 
-class BlockAST : public AST {
-    std::unique_ptr<DeclarationAST> Declaration;
+class CompoundStatementAST : public StatementAST {
     std::vector<std::unique_ptr<StatementAST>> Statements;
 
    public:
+    CompoundStatementAST(std::vector<std::unique_ptr<StatementAST>> Statements)
+        : Statements(std::move(Statements)) {}
+
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
+        std::cerr << "Statements\n";
+        for (auto &Statement : Statements) {
+            Statement->PrintAST(numIndents + 1);
+        }
+        PrintIndents(numIndents);
+        std::cerr << "End Statements\n";
+    }
+};
+
+class BlockAST : public AST {
+    std::unique_ptr<DeclarationAST> Declaration;
+    std::unique_ptr<CompoundStatementAST> CompoundStatement;
+
+   public:
     BlockAST(std::unique_ptr<DeclarationAST> Declaration,
-             std::vector<std::unique_ptr<StatementAST>> Statements)
+             std::unique_ptr<CompoundStatementAST> CompoundStatement)
         : Declaration(std::move(Declaration)),
-          Statements(std::move(Statements)) {}
+          CompoundStatement(std::move(CompoundStatement)) {}
     void PrintAST(int NumIndents) {
         PrintIndents(NumIndents);
         std::cerr << "Block\n";
         Declaration->PrintAST(NumIndents + 1);
-        PrintIndents(NumIndents + 1);
-        std::cerr << "Statements\n";
-        for (auto &Statement : Statements) {
-            Statement->PrintAST(NumIndents + 2);
-        }
+        CompoundStatement->PrintAST(NumIndents + 1);
         PrintIndents(NumIndents);
         std::cerr << "End block\n";
     }
