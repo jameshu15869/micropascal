@@ -3,7 +3,6 @@
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
-#include <iostream>
 
 int CurTok;
 std::string IdentifierStr;

@@ -1,7 +1,5 @@
 #include "parser/parser.h"
 
-#include <cassert>
-
 #include "lexer/lexer.h"
 #include "logger/logger.h"
 
@@ -40,7 +38,7 @@ std::unique_ptr<ExprAST> ParseParenExpr() {
     if (!V) {
         return nullptr;
     }
-    if (CurTok != 'V') {
+    if (CurTok != ')') {
         return LogError("Expected a ')'");
     }
     getNextToken();
@@ -217,7 +215,7 @@ std::unique_ptr<VariableDeclAST> ParseVariableDecl() {
         LogError("Unknown type identifier");
         return nullptr;
     }
-    getNextToken(); // type
+    getNextToken();  // type
 
     if (CurTok != ';') {
         LogError("Expected ';' after variable decl");
@@ -251,6 +249,29 @@ std::unique_ptr<StatementAST> ParseStatement() {
     if (CurTok == tok_identifier) {
         std::string Identifier = IdentifierStr;
         getNextToken();  // eat identifier name
+
+        if (CurTok != '(') {
+            // Must be an assignment
+            if (CurTok != ':') {
+                LogError("Expected ':' in assignment");
+                return nullptr;
+            }
+            getNextToken();  // :
+            if (CurTok != '=') {
+                LogError("Expected '=' in assignment");
+                return nullptr;
+            }
+            getNextToken();  // =
+
+            auto E = ParseExpression();
+            if (!E) {
+                LogError("Error while parsing expression in assignment");
+                return nullptr;
+            }
+            return std::make_unique<VariableAssignmentAST>(Identifier,
+                                                           std::move(E));
+        }
+
         if (CurTok == '(') {
             // we are parsing a function
             getNextToken();  // (

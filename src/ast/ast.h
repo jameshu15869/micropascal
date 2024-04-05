@@ -101,6 +101,23 @@ class StatementCallExprAST : public StatementAST {
     }
 };
 
+class VariableAssignmentAST : public StatementAST {
+    std::string VarName;
+    std::unique_ptr<ExprAST> Value;
+
+   public:
+    VariableAssignmentAST(std::string &VarName, std::unique_ptr<ExprAST> Value)
+        : VarName(VarName), Value(std::move(Value)) {}
+
+    void PrintAST(int numIndents) {
+        PrintIndents(numIndents);
+        std::cerr << "Assignment: " << VarName << '\n';
+        Value->PrintAST(numIndents + 1);
+        PrintIndents(numIndents);
+        std::cerr << "End Assignment: " << VarName << '\n';
+    }
+};
+
 class PrototypeAST : public AST {
     std::string Name;
     std::vector<std::string> Args;
@@ -178,8 +195,10 @@ class BlockAST : public AST {
         PrintIndents(NumIndents);
         std::cerr << "Block\n";
         Declaration->PrintAST(NumIndents + 1);
+        PrintIndents(NumIndents + 1);
+        std::cerr << "Statements\n";
         for (auto &Statement : Statements) {
-            Statement->PrintAST(NumIndents + 1);
+            Statement->PrintAST(NumIndents + 2);
         }
         PrintIndents(NumIndents);
         std::cerr << "End block\n";
