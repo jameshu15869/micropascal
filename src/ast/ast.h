@@ -6,12 +6,16 @@
 #include <string>
 #include <vector>
 
+enum VarType {
+    INTEGER,
+};
+
 class AST {
    public:
     virtual ~AST() = default;
-    virtual void PrintAST(int numIndents) {};
-    void PrintIndents(int numIndents) {
-        std::cerr << std::string(numIndents, ' ');
+    virtual void PrintAST(int NumIndents) {};
+    void PrintIndents(int NumIndents) {
+        std::cerr << std::string(NumIndents, ' ');
     }
 };
 
@@ -25,8 +29,8 @@ class NumberExprAST : public ExprAST {
 
    public:
     NumberExprAST(double Val) : Val(Val) {}
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << Val << '\n';
     }
 };
@@ -36,8 +40,8 @@ class VariableExprAST : public ExprAST {
 
    public:
     VariableExprAST(const std::string &Name) : Name(Name) {}
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << Name << '\n';
     }
 };
@@ -51,11 +55,11 @@ class BinaryExprAST : public ExprAST {
     BinaryExprAST(char Op, std::unique_ptr<ExprAST> LHS,
                   std::unique_ptr<ExprAST> RHS)
         : Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << Op << '\n';
-        LHS->PrintAST(numIndents + 1);
-        RHS->PrintAST(numIndents + 1);
+        LHS->PrintAST(NumIndents + 1);
+        RHS->PrintAST(NumIndents + 1);
     }
 };
 
@@ -66,11 +70,11 @@ class CallExprAST : public ExprAST {
    public:
     CallExprAST(std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args)
         : Callee(Callee), Args(std::move(Args)) {}
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << "Called: " << Callee << '\n';
         for (auto &Arg : Args) {
-            Arg->PrintAST(numIndents + 1);
+            Arg->PrintAST(NumIndents + 1);
         }
     }
 };
@@ -88,11 +92,11 @@ class StatementCallExprAST : public StatementAST {
     StatementCallExprAST(std::string &Callee,
                          std::vector<std::unique_ptr<ExprAST>> Args)
         : Callee(Callee), Args(std::move(Args)) {}
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << "Statement Call: " << Callee << "\n";
         for (auto &Arg : Args) {
-            Arg->PrintAST(numIndents + 1);
+            Arg->PrintAST(NumIndents + 1);
         }
     }
 };
@@ -107,8 +111,8 @@ class PrototypeAST : public AST {
 
     const std::string &getName() const { return Name; }
 
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << "Fn: " << Name << " ";
     }
 };
@@ -121,21 +125,43 @@ class FunctionAST : public AST {
     FunctionAST(std::unique_ptr<PrototypeAST> Proto,
                 std::unique_ptr<ExprAST> Body)
         : Proto(std::move(Proto)), Body(std::move(Body)) {}
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
-        Proto->PrintAST(numIndents + 1);
-        Body->PrintAST(numIndents + 1);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
+        Proto->PrintAST(NumIndents + 1);
+        Body->PrintAST(NumIndents + 1);
     }
 };
 
-class VariableDeclAST : public AST {};
-
-class DeclarationAST : public AST {
-    std::vector<std::unique_ptr<VariableDeclAST>> Declarations;
+class VariableDeclAST : public AST {
+    std::vector<std::string> VarNames;
+    VarType Type;
 
    public:
-    DeclarationAST(std::vector<std::unique_ptr<VariableDeclAST>> Declarations)
-        : Declarations(std::move(Declarations)) {}
+    VariableDeclAST(std::vector<std::string> VarNames, VarType Type)
+        : VarNames(std::move(VarNames)), Type(Type) {}
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
+        std::cerr << "Variable Declaration Block: " << Type << '\n';
+        for (auto &Name : VarNames) {
+            std::cerr << Name << " " << Type << '\n';
+        }
+    }
+};
+
+class DeclarationAST : public AST {
+    std::vector<std::unique_ptr<VariableDeclAST>> VarDeclarations;
+
+   public:
+    DeclarationAST(
+        std::vector<std::unique_ptr<VariableDeclAST>> VarDeclarations)
+        : VarDeclarations(std::move(VarDeclarations)) {}
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
+        std::cerr << "Variable declarations:\n";
+        for (auto &VarDecl : VarDeclarations) {
+            VarDecl->PrintAST(NumIndents + 1);
+        }
+    }
 };
 
 class BlockAST : public AST {
@@ -147,12 +173,12 @@ class BlockAST : public AST {
              std::vector<std::unique_ptr<StatementAST>> Statements)
         : Declaration(std::move(Declaration)),
           Statements(std::move(Statements)) {}
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << "Block\n";
-        Declaration->PrintAST(numIndents + 1);
+        Declaration->PrintAST(NumIndents + 1);
         for (auto &Statement : Statements) {
-            Statement->PrintAST(numIndents + 1);
+            Statement->PrintAST(NumIndents + 1);
         }
         std::cerr << "End block\n";
     }
@@ -165,10 +191,10 @@ class ProgramAST : public AST {
    public:
     ProgramAST(std::string &Name, std::unique_ptr<BlockAST> Block)
         : Name(Name), Block(std::move(Block)) {}
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << "Program: " << Name << "\n";
-        Block->PrintAST(numIndents + 1);
+        Block->PrintAST(NumIndents + 1);
         std::cerr << "\n";
     }
 };

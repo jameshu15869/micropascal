@@ -181,10 +181,28 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
     return nullptr;
 }
 
+std::unique_ptr<VariableDeclAST> ParseVariableDecl() {
+    assert(false && "NOT IMPLEMENTED: ParseVariableDecl");
+    return nullptr;
+}
+
 std::unique_ptr<DeclarationAST> ParseDeclarations() {
     // assert(false && "NOT IMPLEMENTED: ParseDeclarations");
-    return std::make_unique<DeclarationAST>(
-        std::vector<std::unique_ptr<VariableDeclAST>>());
+    std::vector<std::unique_ptr<VariableDeclAST>> VarDecls;
+
+    while (CurTok == tok_var) {
+        getNextToken();  // const | var
+        while (CurTok == tok_identifier) {
+            if (auto D = ParseVariableDecl()) {
+                VarDecls.push_back(std::move(D));
+            } else {
+                LogError("Failed to parse variable decl");
+                return nullptr;
+            }
+        }
+    }
+
+    return std::make_unique<DeclarationAST>(std::move(VarDecls));
 }
 
 std::unique_ptr<StatementAST> ParseStatement() {
@@ -237,24 +255,30 @@ std::unique_ptr<BlockAST> ParseBlock() {
     getNextToken();  // begin
 
     std::vector<std::unique_ptr<StatementAST>> Statements;
-    auto S = ParseStatement();
-    if (!S) {
-        LogError("Failed to parse statement in block");
-        return nullptr;
-    }
-    Statements.push_back(std::move(S));
 
-    // Parse (; <statement>)? optional portion
-    while (CurTok == ';') {
-        getNextToken();  // eat ';'
+    if (CurTok != tok_end) {
+        while (true) {
+            if (auto S = ParseStatement()) {
+                Statements.push_back(std::move(S));
+            } else {
+                LogError("Error while parsing statements in a block");
+                return nullptr;
+            }
 
-        if (CurTok == tok_end) {
-            // There are no more statements to parse
-            break;
-        }
+            if (CurTok == tok_end) {
+                break;
+            }
 
-        if (auto S = ParseStatement()) {
-            Statements.push_back(std::move(S));
+            if (CurTok != ';') {
+                LogError("Expected ';' after statement in block");
+                return nullptr;
+            }
+
+            getNextToken();  // ;
+            // Check for the case ending on a ';'
+            if (CurTok == tok_end) {
+                break;
+            }
         }
     }
 

@@ -14,6 +14,7 @@ std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LH
 std::unique_ptr<PrototypeAST> ParsePrototype();
 std::unique_ptr<FunctionAST> ParseDefinition();
 std::unique_ptr<StatementAST> ParseStatement();
+std::unique_ptr<VariableDeclAST> ParseVariableDecl();
 std::unique_ptr<DeclarationAST> ParseDeclarations();
 std::unique_ptr<BlockAST> ParseBlock();
 std::unique_ptr<ProgramAST> ParseProgram();
