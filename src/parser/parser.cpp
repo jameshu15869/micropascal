@@ -92,6 +92,12 @@ std::unique_ptr<ExprAST> ParsePrimary() {
             return ParseIdentifierExpr();
         case tok_number:
             return ParseNumberExpr();
+        case tok_true:
+            getNextToken();  // true
+            return std::make_unique<ConcreteBoolExprAST>(true);
+        case tok_false:
+            getNextToken();  // false
+            return std::make_unique<ConcreteBoolExprAST>(false);
         case '(':
             return ParseParenExpr();
     }
@@ -204,13 +210,15 @@ std::unique_ptr<VariableDeclAST> ParseVariableDecl() {
 
     getNextToken();  // :
     VarType Type;
-    if (CurTok != tok_integer) {
+    if (!(CurTok == tok_integer || CurTok == tok_boolean)) {
         LogError("Expected type identifier after variable list");
         return nullptr;
     }
 
     if (IdentifierStr == "integer") {
         Type = TYPE_INTEGER;
+    } else if (IdentifierStr == "boolean") {
+        Type = TYPE_BOOLEAN;
     } else {
         LogError("Unknown type identifier");
         return nullptr;

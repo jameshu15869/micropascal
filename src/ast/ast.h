@@ -8,6 +8,7 @@
 
 enum VarType {
     TYPE_INTEGER,
+    TYPE_BOOLEAN,
 };
 
 class AST {
@@ -29,6 +30,20 @@ class NumberExprAST : public ExprAST {
 
    public:
     NumberExprAST(double Val) : Val(Val) {}
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
+        std::cerr << Val << '\n';
+    }
+};
+
+/**
+ * should only be true or false
+ */
+class ConcreteBoolExprAST : public ExprAST {
+    bool Val;
+
+   public:
+    ConcreteBoolExprAST(bool Val) : Val(Val) {}
     void PrintAST(int NumIndents) {
         PrintIndents(NumIndents);
         std::cerr << Val << '\n';
@@ -109,11 +124,11 @@ class VariableAssignmentAST : public StatementAST {
     VariableAssignmentAST(std::string &VarName, std::unique_ptr<ExprAST> Value)
         : VarName(VarName), Value(std::move(Value)) {}
 
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << "Assignment: " << VarName << '\n';
-        Value->PrintAST(numIndents + 1);
-        PrintIndents(numIndents);
+        Value->PrintAST(NumIndents + 1);
+        PrintIndents(NumIndents);
         std::cerr << "End Assignment: " << VarName << '\n';
     }
 };
@@ -189,13 +204,13 @@ class CompoundStatementAST : public StatementAST {
     CompoundStatementAST(std::vector<std::unique_ptr<StatementAST>> Statements)
         : Statements(std::move(Statements)) {}
 
-    void PrintAST(int numIndents) {
-        PrintIndents(numIndents);
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
         std::cerr << "Statements\n";
         for (auto &Statement : Statements) {
-            Statement->PrintAST(numIndents + 1);
+            Statement->PrintAST(NumIndents + 1);
         }
-        PrintIndents(numIndents);
+        PrintIndents(NumIndents);
         std::cerr << "End Statements\n";
     }
 };

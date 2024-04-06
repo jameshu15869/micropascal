@@ -14,10 +14,13 @@ enum Token {
     tok_program,
     tok_const,
     tok_def,
+    tok_true,
+    tok_false,
 
     // types
     tok_real,
     tok_integer,
+    tok_boolean,
 
     // primary
     tok_identifier,

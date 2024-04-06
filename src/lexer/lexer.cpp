@@ -45,6 +45,15 @@ int gettok() {
         if (IdentifierStr == "real") {
             return tok_real;
         }
+        if (IdentifierStr == "boolean") {
+            return tok_boolean;
+        }
+        if (IdentifierStr == "true") {
+            return tok_true;
+        }
+        if (IdentifierStr == "false") {
+            return tok_false;
+        }
 
         return tok_identifier;
     }
