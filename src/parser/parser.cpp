@@ -155,32 +155,66 @@ std::unique_ptr<PrototypeAST> ParsePrototype() {
     if (CurTok != '(') {
         return LogErrorP("Expected '(' in function prototype");
     }
+    getNextToken();  // (
 
-    std::vector<std::string> ArgNames;
-    while (getNextToken() == tok_identifier) {
-        ArgNames.push_back(IdentifierStr);
+    std::vector<std::unique_ptr<VariableDeclAST>> Parameters;
+    if (CurTok != ')') {
+        while (true) {
+            if (auto Decls = ParseVariableDecl()) {
+                Parameters.push_back(std::move(Decls));
+            } else {
+                return nullptr;
+            }
+
+            if (CurTok == ')') {
+                break;
+            }
+
+            if (CurTok != ';') {
+                LogError("Expected ';' in parameters list of procedure");
+                return nullptr;
+            }
+            getNextToken();  // ;
+        }
     }
 
     if (CurTok != ')') {
-        fprintf(stderr, "tok: %d\n", CurTok);
-        return LogErrorP("Expected ')' in function prototype");
+        LogError("Expected ')' after parameters list in procedure");
+        return nullptr;
     }
-
     getNextToken();  // )
+    if (CurTok != ';') {
+        LogError("Expected ';' after prototype in procedure");
+        return nullptr;
+    }
+    getNextToken();  // ;
+    return std::make_unique<PrototypeAST>(FnName, std::move(Parameters));
 
-    return std::make_unique<PrototypeAST>(FnName, std::move(ArgNames));
+    // std::vector<std::string> ArgNames;
+    // while (getNextToken() == tok_identifier) {
+    //     ArgNames.push_back(IdentifierStr);
+    // }
+
+    // if (CurTok != ')') {
+    //     fprintf(stderr, "tok: %d\n", CurTok);
+    //     return LogErrorP("Expected ')' in function prototype");
+    // }
+
+    // getNextToken();  // )
+
+    // return std::make_unique<PrototypeAST>(FnName, std::move(ArgNames));
 }
 
 std::unique_ptr<FunctionAST> ParseDefinition() {
-    getNextToken();  // eat def
+    getNextToken();  // eat procedure
     auto Proto = ParsePrototype();
 
     if (!Proto) {
         return nullptr;
     }
 
-    if (auto E = ParseExpression()) {
-        return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
+    if (auto B = ParseBlock()) {
+        return std::make_unique<FunctionAST>(std::move(Proto), std::move(B));
     }
     return nullptr;
 }
@@ -225,12 +259,6 @@ std::unique_ptr<VariableDeclAST> ParseVariableDecl() {
     }
     getNextToken();  // type
 
-    if (CurTok != ';') {
-        LogError("Expected ';' after variable decl");
-        return nullptr;
-    }
-    getNextToken();  // ;
-
     return std::make_unique<VariableDeclAST>(std::move(VarNames), Type);
 }
 
@@ -247,6 +275,12 @@ std::unique_ptr<DeclarationAST> ParseDeclarations() {
                 LogError("Failed to parse variable decl");
                 return nullptr;
             }
+
+            if (CurTok != ';') {
+                LogError("Expected ';' after variable decl");
+                return nullptr;
+            }
+            getNextToken();  // ;
         }
     }
 
@@ -397,6 +431,18 @@ std::unique_ptr<ProgramAST> ParseProgram() {
     }
     getNextToken();  // ;
 
+    std::vector<std::unique_ptr<FunctionAST>> Functions;
+    while (CurTok == tok_procedure) {
+        if (auto F = ParseDefinition()) {
+            Functions.push_back(std::move(F));
+            if (CurTok != ';') {
+                LogError("Expected ';' after function definition");
+                return nullptr;
+            }
+            getNextToken();  // ;
+        }
+    }
+
     auto Block = ParseBlock();
     if (!Block) {
         return nullptr;
@@ -407,14 +453,8 @@ std::unique_ptr<ProgramAST> ParseProgram() {
         return nullptr;
     }
 
-    return std::make_unique<ProgramAST>(ProgramName, std::move(Block));
+    return std::make_unique<ProgramAST>(ProgramName, std::move(Functions),
+                                        std::move(Block));
 }
 
-std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
-    if (auto E = ParseExpression()) {
-        auto Proto =
-            std::make_unique<PrototypeAST>("", std::vector<std::string>());
-        return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
-    }
-    return nullptr;
-}
+std::unique_ptr<FunctionAST> ParseTopLevelExpr() { return nullptr; }

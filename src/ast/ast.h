@@ -133,37 +133,6 @@ class VariableAssignmentAST : public StatementAST {
     }
 };
 
-class PrototypeAST : public AST {
-    std::string Name;
-    std::vector<std::string> Args;
-
-   public:
-    PrototypeAST(const std::string &Name, std::vector<std::string> Args)
-        : Name(Name), Args(std::move(Args)) {}
-
-    const std::string &getName() const { return Name; }
-
-    void PrintAST(int NumIndents) {
-        PrintIndents(NumIndents);
-        std::cerr << "Fn: " << Name << " ";
-    }
-};
-
-class FunctionAST : public AST {
-    std::unique_ptr<PrototypeAST> Proto;
-    std::unique_ptr<ExprAST> Body;
-
-   public:
-    FunctionAST(std::unique_ptr<PrototypeAST> Proto,
-                std::unique_ptr<ExprAST> Body)
-        : Proto(std::move(Proto)), Body(std::move(Body)) {}
-    void PrintAST(int NumIndents) {
-        PrintIndents(NumIndents);
-        Proto->PrintAST(NumIndents + 1);
-        Body->PrintAST(NumIndents + 1);
-    }
-};
-
 class VariableDeclAST : public AST {
     std::vector<std::string> VarNames;
     VarType Type;
@@ -181,6 +150,30 @@ class VariableDeclAST : public AST {
     }
 };
 
+class PrototypeAST : public AST {
+    std::string Name;
+    std::vector<std::unique_ptr<VariableDeclAST>> Parameters;
+
+   public:
+    PrototypeAST(const std::string &Name,
+                 std::vector<std::unique_ptr<VariableDeclAST>> Parameters)
+        : Name(Name), Parameters(std::move(Parameters)) {}
+
+    const std::string &getName() const { return Name; }
+
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
+        std::cerr << "Start Proto: " << Name << '\n';
+
+        for (auto &Parameter : Parameters) {
+            Parameter->PrintAST(NumIndents + 1);
+        }
+
+        PrintIndents(NumIndents);
+        std::cerr << "End Proto: " << Name << '\n';
+    }
+};
+
 class DeclarationAST : public AST {
     std::vector<std::unique_ptr<VariableDeclAST>> VarDeclarations;
 
@@ -191,6 +184,7 @@ class DeclarationAST : public AST {
     void PrintAST(int NumIndents) {
         PrintIndents(NumIndents);
         std::cerr << "Variable declarations:\n";
+
         for (auto &VarDecl : VarDeclarations) {
             VarDecl->PrintAST(NumIndents + 1);
         }
@@ -207,9 +201,11 @@ class CompoundStatementAST : public StatementAST {
     void PrintAST(int NumIndents) {
         PrintIndents(NumIndents);
         std::cerr << "Statements\n";
+
         for (auto &Statement : Statements) {
             Statement->PrintAST(NumIndents + 1);
         }
+
         PrintIndents(NumIndents);
         std::cerr << "End Statements\n";
     }
@@ -227,27 +223,63 @@ class BlockAST : public AST {
     void PrintAST(int NumIndents) {
         PrintIndents(NumIndents);
         std::cerr << "Block\n";
+
         Declaration->PrintAST(NumIndents + 1);
         CompoundStatement->PrintAST(NumIndents + 1);
+
         PrintIndents(NumIndents);
         std::cerr << "End block\n";
     }
 };
 
+class FunctionAST : public AST {
+    std::unique_ptr<PrototypeAST> Proto;
+    std::unique_ptr<BlockAST> Body;
+
+   public:
+    FunctionAST(std::unique_ptr<PrototypeAST> Proto,
+                std::unique_ptr<BlockAST> Body)
+        : Proto(std::move(Proto)), Body(std::move(Body)) {}
+    void PrintAST(int NumIndents) {
+        PrintIndents(NumIndents);
+        std::cerr << "Fn: " << Proto->getName() << "\n";
+
+        Proto->PrintAST(NumIndents + 1);
+        Body->PrintAST(NumIndents + 1);
+
+        PrintIndents(NumIndents);
+        std::cerr << "End Fn: " << Proto->getName() << "\n";
+    }
+};
+
 class ProgramAST : public AST {
     std::string Name;
+    std::vector<std::unique_ptr<FunctionAST>> Functions;
     std::unique_ptr<BlockAST> Block;
 
    public:
-    ProgramAST(std::string &Name, std::unique_ptr<BlockAST> Block)
-        : Name(Name), Block(std::move(Block)) {}
+    ProgramAST(std::string &Name,
+               std::vector<std::unique_ptr<FunctionAST>> Functions,
+               std::unique_ptr<BlockAST> Block)
+        : Name(Name),
+          Functions(std::move(Functions)),
+          Block(std::move(Block)) {}
     void PrintAST(int NumIndents) {
         PrintIndents(NumIndents);
         std::cerr << "Program: " << Name << "\n";
+
+        PrintIndents(NumIndents + 1);
+        std::cerr << "Functions:\n";
+        for (auto &Function : Functions) {
+            Function->PrintAST(NumIndents + 2);
+        }
+        PrintIndents(NumIndents + 1);
+        std::cerr << "End Functions\n";
+
         Block->PrintAST(NumIndents + 1);
+
         PrintIndents(NumIndents);
         std::cerr << "End Program: " << Name << "\n";
     }
 };
-
 #endif

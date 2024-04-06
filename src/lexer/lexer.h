@@ -16,6 +16,7 @@ enum Token {
     tok_def,
     tok_true,
     tok_false,
+    tok_procedure,
 
     // types
     tok_real,

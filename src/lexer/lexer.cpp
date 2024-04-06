@@ -54,6 +54,9 @@ int gettok() {
         if (IdentifierStr == "false") {
             return tok_false;
         }
+        if (IdentifierStr == "procedure") {
+            return tok_procedure;
+        }
 
         return tok_identifier;
     }
