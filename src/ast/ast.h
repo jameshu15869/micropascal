@@ -28,10 +28,7 @@ class NumberExprAST : public ExprAST {
 
    public:
     NumberExprAST(double Val) : Val(Val) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << Val << '\n';
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 /**
@@ -42,10 +39,7 @@ class ConcreteBoolExprAST : public ExprAST {
 
    public:
     ConcreteBoolExprAST(bool Val) : Val(Val) {}
-    void PrintAST(int NumIndents) {
-        PrintIndents(NumIndents);
-        std::cerr << Val << '\n';
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class VariableExprAST : public ExprAST {
@@ -53,10 +47,7 @@ class VariableExprAST : public ExprAST {
 
    public:
     VariableExprAST(const std::string &Name) : Name(Name) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << Name << '\n';
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class BinaryExprAST : public ExprAST {
@@ -68,12 +59,7 @@ class BinaryExprAST : public ExprAST {
     BinaryExprAST(char Op, std::unique_ptr<ExprAST> LHS,
                   std::unique_ptr<ExprAST> RHS)
         : Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << Op << '\n';
-        LHS->PrintAST(NumIndents + 1);
-        RHS->PrintAST(NumIndents + 1);
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class CallExprAST : public ExprAST {
@@ -83,13 +69,7 @@ class CallExprAST : public ExprAST {
    public:
     CallExprAST(std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args)
         : Callee(Callee), Args(std::move(Args)) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Called: " << Callee << '\n';
-        for (auto &Arg : Args) {
-            Arg->PrintAST(NumIndents + 1);
-        }
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class StatementAST : public AST {};
@@ -105,13 +85,7 @@ class StatementCallExprAST : public StatementAST {
     StatementCallExprAST(std::string &Callee,
                          std::vector<std::unique_ptr<ExprAST>> Args)
         : Callee(Callee), Args(std::move(Args)) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Statement Call: " << Callee << "\n";
-        for (auto &Arg : Args) {
-            Arg->PrintAST(NumIndents + 1);
-        }
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class IfStatementAST : public StatementAST {
@@ -123,24 +97,7 @@ class IfStatementAST : public StatementAST {
                    std::unique_ptr<StatementAST> Then,
                    std::unique_ptr<StatementAST> Else)
         : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "If Statement\n";
-
-        PrintIndents(NumIndents + 1);
-        std::cerr << "Cond\n";
-        Cond->PrintAST(NumIndents + 2);
-
-        PrintIndents(NumIndents + 1);
-        std::cerr << "Then\n";
-        Then->PrintAST(NumIndents + 2);
-
-        if (Else) {
-            PrintIndents(NumIndents + 1);
-            std::cerr << "Else\n";
-            Else->PrintAST(NumIndents + 2);
-        }
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class VariableAssignmentAST : public StatementAST {
@@ -151,13 +108,7 @@ class VariableAssignmentAST : public StatementAST {
     VariableAssignmentAST(std::string &VarName, std::unique_ptr<ExprAST> Value)
         : VarName(VarName), Value(std::move(Value)) {}
 
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Assignment: " << VarName << '\n';
-        Value->PrintAST(NumIndents + 1);
-        PrintIndents(NumIndents);
-        std::cerr << "End Assignment: " << VarName << '\n';
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class VariableDeclAST : public AST {
@@ -167,14 +118,7 @@ class VariableDeclAST : public AST {
    public:
     VariableDeclAST(std::vector<std::string> VarNames, VarType Type)
         : VarNames(std::move(VarNames)), Type(Type) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Variable Declaration Block: " << Type << '\n';
-        for (auto &Name : VarNames) {
-            PrintIndents(NumIndents + 1);
-            std::cerr << Name << " " << Type << '\n';
-        }
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class PrototypeAST : public AST {
@@ -188,17 +132,7 @@ class PrototypeAST : public AST {
 
     const std::string &getName() const { return Name; }
 
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Start Proto: " << Name << '\n';
-
-        for (auto &Parameter : Parameters) {
-            Parameter->PrintAST(NumIndents + 1);
-        }
-
-        PrintIndents(NumIndents);
-        std::cerr << "End Proto: " << Name << '\n';
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class DeclarationAST : public AST {
@@ -208,14 +142,7 @@ class DeclarationAST : public AST {
     DeclarationAST(
         std::vector<std::unique_ptr<VariableDeclAST>> VarDeclarations)
         : VarDeclarations(std::move(VarDeclarations)) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Variable declarations:\n";
-
-        for (auto &VarDecl : VarDeclarations) {
-            VarDecl->PrintAST(NumIndents + 1);
-        }
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class CompoundStatementAST : public StatementAST {
@@ -225,17 +152,7 @@ class CompoundStatementAST : public StatementAST {
     CompoundStatementAST(std::vector<std::unique_ptr<StatementAST>> Statements)
         : Statements(std::move(Statements)) {}
 
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Statements\n";
-
-        for (auto &Statement : Statements) {
-            Statement->PrintAST(NumIndents + 1);
-        }
-
-        PrintIndents(NumIndents);
-        std::cerr << "End Statements\n";
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class BlockAST : public AST {
@@ -247,16 +164,7 @@ class BlockAST : public AST {
              std::unique_ptr<CompoundStatementAST> CompoundStatement)
         : Declaration(std::move(Declaration)),
           CompoundStatement(std::move(CompoundStatement)) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Block\n";
-
-        Declaration->PrintAST(NumIndents + 1);
-        CompoundStatement->PrintAST(NumIndents + 1);
-
-        PrintIndents(NumIndents);
-        std::cerr << "End block\n";
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class FunctionAST : public AST {
@@ -267,16 +175,7 @@ class FunctionAST : public AST {
     FunctionAST(std::unique_ptr<PrototypeAST> Proto,
                 std::unique_ptr<BlockAST> Body)
         : Proto(std::move(Proto)), Body(std::move(Body)) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Fn: " << Proto->getName() << "\n";
-
-        Proto->PrintAST(NumIndents + 1);
-        Body->PrintAST(NumIndents + 1);
-
-        PrintIndents(NumIndents);
-        std::cerr << "End Fn: " << Proto->getName() << "\n";
-    }
+    void PrintAST(int NumIndents) override;
 };
 
 class ProgramAST : public AST {
@@ -291,22 +190,6 @@ class ProgramAST : public AST {
         : Name(Name),
           Functions(std::move(Functions)),
           Block(std::move(Block)) {}
-    void PrintAST(int NumIndents) override {
-        PrintIndents(NumIndents);
-        std::cerr << "Program: " << Name << "\n";
-
-        PrintIndents(NumIndents + 1);
-        std::cerr << "Functions:\n";
-        for (auto &Function : Functions) {
-            Function->PrintAST(NumIndents + 2);
-        }
-        PrintIndents(NumIndents + 1);
-        std::cerr << "End Functions\n";
-
-        Block->PrintAST(NumIndents + 1);
-
-        PrintIndents(NumIndents);
-        std::cerr << "End Program: " << Name << "\n";
-    }
+    void PrintAST(int NumIndents) override;
 };
 #endif
