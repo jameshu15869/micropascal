@@ -13,6 +13,8 @@ std::unique_ptr<ExprAST> ParseExpression();
 std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS);
 std::unique_ptr<PrototypeAST> ParsePrototype();
 std::unique_ptr<FunctionAST> ParseDefinition();
+std::unique_ptr<VariableAssignmentAST> ParseVariableAssignment(std::string &Identifier);
+std::unique_ptr<IfStatementAST> ParseIfStatement();
 std::unique_ptr<StatementAST> ParseStatement();
 std::unique_ptr<VariableDeclAST> ParseVariableDecl();
 std::unique_ptr<DeclarationAST> ParseDeclarations();

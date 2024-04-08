@@ -287,6 +287,65 @@ std::unique_ptr<DeclarationAST> ParseDeclarations() {
     return std::make_unique<DeclarationAST>(std::move(VarDecls));
 }
 
+std::unique_ptr<VariableAssignmentAST> ParseVariableAssignment(std::string &Identifier) {
+    if (CurTok != ':') {
+        LogError("Expected ':' in assignment");
+        return nullptr;
+    }
+    getNextToken();  // :
+    if (CurTok != '=') {
+        LogError("Expected '=' in assignment");
+        return nullptr;
+    }
+    getNextToken();  // =
+
+    auto E = ParseExpression();
+    if (!E) {
+        LogError("Error while parsing expression in assignment");
+        return nullptr;
+    }
+    return std::make_unique<VariableAssignmentAST>(Identifier, std::move(E));
+}
+
+std::unique_ptr<IfStatementAST> ParseIfStatement() {
+    if (CurTok != tok_if) {
+        return nullptr;
+    }
+
+    getNextToken(); // if
+
+    auto Cond = ParseExpression();
+    if (!Cond) {
+        LogError("Failed to parse cond in if statement");
+        return nullptr;
+    }
+
+    if (CurTok != tok_then) {
+        LogError("Expected 'then' after if cond");
+        return nullptr;
+    }
+
+    getNextToken(); // then
+    auto Then = ParseStatement();
+    if (!Then) {
+        LogError("Failed to parse then in if statement");
+        return nullptr;
+    }
+
+    if (CurTok == tok_else) {
+        getNextToken(); // else
+        auto Else = ParseStatement();
+        if (!Else) {
+            LogError("Failed to parse else in if statement");
+            return nullptr;
+        }
+
+        return std::make_unique<IfStatementAST>(std::move(Cond), std::move(Then), std::move(Else));
+    }
+
+    return std::make_unique<IfStatementAST>(std::move(Cond), std::move(Then), nullptr);
+}
+
 std::unique_ptr<StatementAST> ParseStatement() {
     if (CurTok == tok_identifier) {
         std::string Identifier = IdentifierStr;
@@ -294,24 +353,9 @@ std::unique_ptr<StatementAST> ParseStatement() {
 
         if (CurTok != '(') {
             // Must be an assignment
-            if (CurTok != ':') {
-                LogError("Expected ':' in assignment");
-                return nullptr;
+            if (auto S = ParseVariableAssignment(Identifier)) {
+                return std::move(S);
             }
-            getNextToken();  // :
-            if (CurTok != '=') {
-                LogError("Expected '=' in assignment");
-                return nullptr;
-            }
-            getNextToken();  // =
-
-            auto E = ParseExpression();
-            if (!E) {
-                LogError("Error while parsing expression in assignment");
-                return nullptr;
-            }
-            return std::make_unique<VariableAssignmentAST>(Identifier,
-                                                           std::move(E));
         }
 
         if (CurTok == '(') {
@@ -347,6 +391,13 @@ std::unique_ptr<StatementAST> ParseStatement() {
     if (CurTok == tok_begin) {
         // We are parsing a nested begin
         if (auto S = ParseCompoundStatement()) {
+            return std::move(S);
+        }
+    }
+
+    if (CurTok == tok_if) {
+        // we are parsing an if
+        if (auto S = ParseIfStatement()) {
             return std::move(S);
         }
     }
