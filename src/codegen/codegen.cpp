@@ -1,6 +1,5 @@
 #include "codegen/codegen.h"
 
-#include <iostream>
 #include <map>
 
 #include "llvm/IR/IRBuilder.h"
@@ -31,7 +30,8 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(NumberExprAST &E) override {
-        V = ConstantInt::get(Type::getInt64Ty(TheModule->getContext()), (uint64_t) E.GetVal());
+        V = ConstantInt::get(Type::getInt64Ty(TheModule->getContext()),
+                             (uint64_t)E.GetVal());
     }
 
     virtual void Visit(ConcreteBoolExprAST &E) override {
@@ -152,7 +152,7 @@ class GenIRVisitor : public ASTVisitor {
             Type *CurrentType;
             switch (Decl->GetType()) {
                 case TYPE_INTEGER:
-                    CurrentType = Type::getDoubleTy(TheModule->getContext());
+                    CurrentType = Type::getInt64Ty(TheModule->getContext());
                     break;
                 case TYPE_BOOLEAN:
                     CurrentType = Type::getInt1Ty(TheModule->getContext());
@@ -235,10 +235,6 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(ProgramAST &P) override {
-        for (auto &Func : P.GetFunctions()) {
-            std::cerr << "Func: " << Func->GetPrototype().GetName();
-        }
-
         // Create prototype for writeln() from runtime.c
         FunctionType *WriteLnTy = FunctionType::get(
             Type::getVoidTy(TheModule->getContext()),
@@ -246,6 +242,10 @@ class GenIRVisitor : public ASTVisitor {
 
         Function *WriteLn = Function::Create(
             WriteLnTy, Function::ExternalLinkage, "writeln", TheModule.get());
+
+        for (auto &Func : P.GetFunctions()) {
+            Func->Accept(*this);
+        }
 
         FunctionType *MainFT = FunctionType::get(
             Type::getVoidTy(TheModule->getContext()), {}, false);

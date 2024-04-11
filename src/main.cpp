@@ -1,8 +1,8 @@
+#include <iostream>
+
+#include "codegen/codegen.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
-#include "codegen/codegen.h"
-
-#include <iostream>
 
 void HandleDefinition() {
     if (ParseDefinition()) {
@@ -15,7 +15,7 @@ void HandleDefinition() {
 void HandleProgram() {
     if (auto P = ParseProgram()) {
         fprintf(stderr, "Parsed a program.\n");
-        // P->PrintAST(0);
+        P->PrintAST(0);
         std::cerr << "\n";
         CodeGen CG;
         CG.Compile(std::move(P));
