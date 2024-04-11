@@ -1,8 +1,21 @@
 #include <iostream>
 
 #include "codegen/codegen.h"
+#include "kaleidoscopejit/KaleidoscopeJIT.h"
 #include "lexer/lexer.h"
+#include "llvm/Support/TargetSelect.h"
 #include "parser/parser.h"
+
+static std::unique_ptr<llvm::orc::KaleidoscopeJIT> TheJIT;
+static llvm::ExitOnError ExitOnErr;
+
+#include <inttypes.h>
+#include <stdio.h>
+
+extern "C" void writeln(int64_t v) {
+    fprintf(stderr, "%" PRIi64, v);
+    fprintf(stderr, "\n");
+}
 
 void HandleDefinition() {
     if (ParseDefinition()) {
@@ -18,7 +31,7 @@ void HandleProgram() {
         P->PrintAST(0);
         std::cerr << "\n";
         CodeGen CG;
-        CG.Compile(std::move(P));
+        CG.CompileAndRun(std::move(P), *TheJIT);
     } else {
         getNextToken();
     }
@@ -57,10 +70,16 @@ void MainLoop() {
 }
 
 int main() {
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+
     InstantiateBinopPrecendence();
 
     fprintf(stderr, "ready> ");
     getNextToken();
+
+    TheJIT = ExitOnErr(llvm::orc::KaleidoscopeJIT::Create());
 
     MainLoop();
 

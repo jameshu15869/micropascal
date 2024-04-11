@@ -1,5 +1,6 @@
 #include "codegen/codegen.h"
 
+#include <iostream>
 #include <map>
 
 #include "llvm/Analysis/CGSCCPassManager.h"
@@ -19,7 +20,8 @@
 using namespace llvm;
 
 class GenIRVisitor : public ASTVisitor {
-    std::unique_ptr<Module> TheModule;
+    // std::unique_ptr<Module> TheModule;
+    Module *TheModule;
     IRBuilder<> Builder;
     std::unique_ptr<FunctionPassManager> TheFPM;
     std::unique_ptr<LoopAnalysisManager> TheLAM;
@@ -36,15 +38,14 @@ class GenIRVisitor : public ASTVisitor {
     std::map<std::string, Value *> NamedValues;
 
    public:
-    GenIRVisitor(std::unique_ptr<Module> M,
-                 std::unique_ptr<FunctionPassManager> FPM,
+    GenIRVisitor(Module *M, std::unique_ptr<FunctionPassManager> FPM,
                  std::unique_ptr<LoopAnalysisManager> LAM,
                  std::unique_ptr<FunctionAnalysisManager> FAM,
                  std::unique_ptr<CGSCCAnalysisManager> CGAM,
                  std::unique_ptr<ModuleAnalysisManager> MAM,
                  std::unique_ptr<PassInstrumentationCallbacks> PIC,
                  std::unique_ptr<StandardInstrumentations> SI)
-        : TheModule(std::move(M)),
+        : TheModule(M),
           TheFPM(std::move(FPM)),
           TheLAM(std::move(LAM)),
           TheFAM(std::move(FAM)),
@@ -215,7 +216,7 @@ class GenIRVisitor : public ASTVisitor {
             Type::getVoidTy(TheModule->getContext()), ParameterTypes, false);
 
         Function *CreatedF = Function::Create(FT, Function::ExternalLinkage,
-                                              P.GetName(), TheModule.get());
+                                              P.GetName(), TheModule);
 
         unsigned Idx = 0;
         for (auto &Arg : CreatedF->args()) {
@@ -288,7 +289,7 @@ class GenIRVisitor : public ASTVisitor {
             {Type::getInt64Ty(TheModule->getContext())}, false);
 
         Function *WriteLn = Function::Create(
-            WriteLnTy, Function::ExternalLinkage, "writeln", TheModule.get());
+            WriteLnTy, Function::ExternalLinkage, "writeln", TheModule);
 
         for (auto &Func : P.GetFunctions()) {
             Func->Accept(*this);
@@ -297,7 +298,7 @@ class GenIRVisitor : public ASTVisitor {
         FunctionType *MainFT = FunctionType::get(
             Type::getVoidTy(TheModule->getContext()), {}, false);
         Function *MainFn = Function::Create(MainFT, Function::ExternalLinkage,
-                                            "main", TheModule.get());
+                                            "toylang_main", TheModule);
         BasicBlock *BB =
             BasicBlock::Create(TheModule->getContext(), "entry", MainFn);
 
@@ -314,10 +315,12 @@ class GenIRVisitor : public ASTVisitor {
     }
 };
 
-void CodeGen::Compile(std::unique_ptr<AST> Ast) {
+void CodeGen::CompileAndRun(std::unique_ptr<AST> Ast,
+                            llvm::orc::KaleidoscopeJIT &TheJIT) {
     std::unique_ptr<LLVMContext> TheContext = std::make_unique<LLVMContext>();
-    std::unique_ptr<Module> M =
-        std::make_unique<Module>("toy-lang.tl", *TheContext);
+    M = std::make_unique<Module>("toy-lang.tl", *TheContext);
+
+    M->setDataLayout(TheJIT.getDataLayout());
 
     std::unique_ptr<FunctionPassManager> FPM =
         std::make_unique<FunctionPassManager>();
@@ -334,9 +337,26 @@ void CodeGen::Compile(std::unique_ptr<AST> Ast) {
     std::unique_ptr<StandardInstrumentations> SI =
         std::make_unique<StandardInstrumentations>(*TheContext, true);
 
-    GenIRVisitor GenIR(std::move(M), std::move(FPM), std::move(LAM),
-                       std::move(FAM), std::move(CGAM), std::move(MAM),
-                       std::move(PIC), std::move(SI));
+    GenIRVisitor GenIR(M.get(), std::move(FPM), std::move(LAM), std::move(FAM),
+                       std::move(CGAM), std::move(MAM), std::move(PIC),
+                       std::move(SI));
     GenIR.run(std::move(Ast));
     // M->print(outs(), nullptr);
+
+    auto RT = TheJIT.getMainJITDylib().createResourceTracker();
+
+    auto TSM = llvm::orc::ThreadSafeModule(std::move(M), std::move(TheContext));
+
+    llvm::ExitOnError ExitOnErr;
+    ExitOnErr(TheJIT.addModule(std::move(TSM), RT));
+
+    auto ExprSymbol = ExitOnErr(TheJIT.lookup("toylang_main"));
+
+    std::cerr << "\n";
+    std::cerr << "Execution result:\n";
+    // Execute the main function
+    void (*FP)() = ExprSymbol.getAddress().toPtr<void (*)()>();
+    FP();
+
+    ExitOnErr(RT->remove());
 }
