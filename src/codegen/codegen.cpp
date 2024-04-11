@@ -2,8 +2,18 @@
 
 #include <map>
 
+#include "llvm/Analysis/CGSCCPassManager.h"
+#include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/StandardInstrumentations.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Scalar/Reassociate.h"
+#include "llvm/Transforms/Scalar/SimplifyCFG.h"
 #include "logger/logger.h"
 
 using namespace llvm;
@@ -11,6 +21,13 @@ using namespace llvm;
 class GenIRVisitor : public ASTVisitor {
     std::unique_ptr<Module> TheModule;
     IRBuilder<> Builder;
+    std::unique_ptr<FunctionPassManager> TheFPM;
+    std::unique_ptr<LoopAnalysisManager> TheLAM;
+    std::unique_ptr<FunctionAnalysisManager> TheFAM;
+    std::unique_ptr<CGSCCAnalysisManager> TheCGAM;
+    std::unique_ptr<ModuleAnalysisManager> TheMAM;
+    std::unique_ptr<PassInstrumentationCallbacks> ThePIC;
+    std::unique_ptr<StandardInstrumentations> TheSI;
 
     Type *Int1Ty;
 
@@ -19,9 +36,36 @@ class GenIRVisitor : public ASTVisitor {
     std::map<std::string, Value *> NamedValues;
 
    public:
-    GenIRVisitor(std::unique_ptr<Module> M)
-        : TheModule(std::move(M)), Builder(TheModule->getContext()) {
+    GenIRVisitor(std::unique_ptr<Module> M,
+                 std::unique_ptr<FunctionPassManager> FPM,
+                 std::unique_ptr<LoopAnalysisManager> LAM,
+                 std::unique_ptr<FunctionAnalysisManager> FAM,
+                 std::unique_ptr<CGSCCAnalysisManager> CGAM,
+                 std::unique_ptr<ModuleAnalysisManager> MAM,
+                 std::unique_ptr<PassInstrumentationCallbacks> PIC,
+                 std::unique_ptr<StandardInstrumentations> SI)
+        : TheModule(std::move(M)),
+          TheFPM(std::move(FPM)),
+          TheLAM(std::move(LAM)),
+          TheFAM(std::move(FAM)),
+          TheCGAM(std::move(CGAM)),
+          TheMAM(std::move(MAM)),
+          ThePIC(std::move(PIC)),
+          TheSI(std::move(SI)),
+          Builder(TheModule->getContext()) {
         Int1Ty = Type::getInt1Ty(TheModule->getContext());
+
+        TheSI->registerCallbacks(*ThePIC, TheMAM.get());
+
+        TheFPM->addPass(InstCombinePass());
+        TheFPM->addPass(ReassociatePass());
+        TheFPM->addPass(GVNPass());
+        TheFPM->addPass(SimplifyCFGPass());
+
+        PassBuilder PB;
+        PB.registerModuleAnalyses(*TheMAM);
+        PB.registerFunctionAnalyses(*TheFAM);
+        PB.crossRegisterProxies(*TheLAM, *TheFAM, *TheCGAM, *TheMAM);
     }
 
     void run(std::unique_ptr<AST> Ast) {
@@ -231,6 +275,9 @@ class GenIRVisitor : public ASTVisitor {
         }
         Builder.CreateRet(V);
         verifyFunction(*TheFunction);
+
+        TheFPM->run(*TheFunction, *TheFAM);
+
         F = TheFunction;
     }
 
@@ -260,6 +307,9 @@ class GenIRVisitor : public ASTVisitor {
 
         Builder.CreateRet(ConstantInt::get(
             Type::getInt32Ty(TheModule->getContext()), 0, true));
+
+        TheFPM->run(*MainFn, *TheFAM);
+
         F = MainFn;
     }
 };
@@ -269,7 +319,24 @@ void CodeGen::Compile(std::unique_ptr<AST> Ast) {
     std::unique_ptr<Module> M =
         std::make_unique<Module>("toy-lang.tl", *TheContext);
 
-    GenIRVisitor GenIR(std::move(M));
+    std::unique_ptr<FunctionPassManager> FPM =
+        std::make_unique<FunctionPassManager>();
+    std::unique_ptr<LoopAnalysisManager> LAM =
+        std::make_unique<LoopAnalysisManager>();
+    std::unique_ptr<FunctionAnalysisManager> FAM =
+        std::make_unique<FunctionAnalysisManager>();
+    std::unique_ptr<CGSCCAnalysisManager> CGAM =
+        std::make_unique<CGSCCAnalysisManager>();
+    std::unique_ptr<ModuleAnalysisManager> MAM =
+        std::make_unique<ModuleAnalysisManager>();
+    std::unique_ptr<PassInstrumentationCallbacks> PIC =
+        std::make_unique<PassInstrumentationCallbacks>();
+    std::unique_ptr<StandardInstrumentations> SI =
+        std::make_unique<StandardInstrumentations>(*TheContext, true);
+
+    GenIRVisitor GenIR(std::move(M), std::move(FPM), std::move(LAM),
+                       std::move(FAM), std::move(CGAM), std::move(MAM),
+                       std::move(PIC), std::move(SI));
     GenIR.run(std::move(Ast));
     // M->print(outs(), nullptr);
 }

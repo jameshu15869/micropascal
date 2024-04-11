@@ -16,6 +16,6 @@ add_definitions(${LLVM_DEFINITIONS_LIST})
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs support core irreader orcjit native)
 
 add_subdirectory(src)

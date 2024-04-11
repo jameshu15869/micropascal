@@ -6,4 +6,4 @@ endforeach()
 
 message("SOURCES ${SOURCE_FILES}")
 add_llvm_executable(main main.cpp ${SOURCE_FILES})
-target_link_libraries(main ${llvm_libs})
+target_link_libraries(main PRIVATE ${llvm_libs})
