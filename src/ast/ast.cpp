@@ -1,5 +1,7 @@
 #include "ast.h"
 
+#include <iostream>
+
 void AST::PrintIndents(int NumIndents) {
     std::cerr << std::string(NumIndents, ' ');
 }
@@ -124,13 +126,13 @@ void BlockAST::PrintAST(int NumIndents) {
 
 void FunctionAST::PrintAST(int NumIndents) {
     PrintIndents(NumIndents);
-    std::cerr << "Fn: " << Proto->getName() << "\n";
+    std::cerr << "Fn: " << Proto->GetName() << "\n";
 
     Proto->PrintAST(NumIndents + 1);
     Body->PrintAST(NumIndents + 1);
 
     PrintIndents(NumIndents);
-    std::cerr << "End Fn: " << Proto->getName() << "\n";
+    std::cerr << "End Fn: " << Proto->GetName() << "\n";
 }
 
 void ProgramAST::PrintAST(int NumIndents) {

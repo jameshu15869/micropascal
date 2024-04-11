@@ -1,6 +1,6 @@
 set(SOURCE_FILES "")
 
-foreach (dir IN ITEMS lexer ast logger parser)
+foreach (dir IN ITEMS lexer ast logger parser codegen)
     list(APPEND SOURCE_FILES "${dir}/${dir}.cpp" "${dir}/${dir}.h")
 endforeach()
 
