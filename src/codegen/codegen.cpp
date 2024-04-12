@@ -117,6 +117,9 @@ class GenIRVisitor : public ASTVisitor {
             case '/':
                 V = Builder.CreateSDiv(L, R, "divtmp");
                 break;
+            case '<':
+                V = Builder.CreateICmpSLT(L, R, "cmptmp");
+                break;
             default:
                 LogError("Unknown operation!");
                 return;
@@ -311,7 +314,7 @@ class GenIRVisitor : public ASTVisitor {
                     CurrentType = Type::getInt64Ty(TheModule->getContext());
                     break;
                 case TYPE_BOOLEAN:
-                    CurrentType = Type::getInt1Ty(TheModule->getContext());
+                    CurrentType = Type::getInt64Ty(TheModule->getContext());
                     break;
                 default:
                     LogError("Unknown parameter type");
