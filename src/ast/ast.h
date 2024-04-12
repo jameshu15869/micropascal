@@ -239,6 +239,10 @@ class DeclarationAST : public AST {
         : VarDeclarations(std::move(VarDeclarations)) {}
     void PrintAST(int NumIndents) override;
     virtual void Accept(ASTVisitor &Visitor) override { Visitor.Visit(*this); }
+    const std::vector<std::unique_ptr<VariableDeclAST>> &GetVarDeclarations()
+        const {
+        return VarDeclarations;
+    }
 };
 
 class CompoundStatementAST : public StatementAST {

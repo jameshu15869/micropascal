@@ -270,7 +270,7 @@ class GenIRVisitor : public ASTVisitor {
         }
 
         Value *EndCond = V;
-        EndCond = Builder.CreateICmpNE(Variable, EndCond, "loopcond");
+        EndCond = Builder.CreateICmpSGT(Variable, EndCond, "loopcond");
 
         BasicBlock *LoopEndBB = Builder.GetInsertBlock();
         BasicBlock *AfterBB = BasicBlock::Create(TheModule->getContext(),
@@ -338,7 +338,11 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(DeclarationAST &D) override {
-        assert(false && "NOT IMPLEMENTED: Visit DeclarationAST");
+        for (auto &VarDecl : D.GetVarDeclarations()) {
+            for (auto Name : VarDecl->GetVarNames()) {
+                NamedValues[Name] = nullptr;
+            }
+        }
     }
 
     virtual void Visit(CompoundStatementAST &S) override {
@@ -348,7 +352,7 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(BlockAST &B) override {
-        // B.GetDeclaration().Accept(*this);
+        B.GetDeclaration().Accept(*this);
 
         B.GetCompoundStatementAST().Accept(*this);
     }
