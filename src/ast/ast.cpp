@@ -49,18 +49,44 @@ void IfStatementAST::PrintAST(int NumIndents) {
     std::cerr << "If Statement\n";
 
     PrintIndents(NumIndents + 1);
-    std::cerr << "Cond\n";
+    std::cerr << "Cond:\n";
     Cond->PrintAST(NumIndents + 2);
 
     PrintIndents(NumIndents + 1);
-    std::cerr << "Then\n";
+    std::cerr << "Then:\n";
     Then->PrintAST(NumIndents + 2);
 
     if (Else) {
         PrintIndents(NumIndents + 1);
-        std::cerr << "Else\n";
+        std::cerr << "Else:\n";
         Else->PrintAST(NumIndents + 2);
     }
+
+    PrintIndents(NumIndents);
+    std::cerr << "End If Statement\n";
+}
+
+void ForStatementAST::PrintAST(int NumIndents) {
+    PrintIndents(NumIndents);
+    std::cerr << "For Statement\n";
+
+    PrintIndents(NumIndents + 1);
+    std::cerr << "Var Name: " << VarName << "\n";
+
+    PrintIndents(NumIndents + 1);
+    std::cerr << "Start:\n";
+    Start->PrintAST(NumIndents + 2);
+
+    PrintIndents(NumIndents + 1);
+    std::cerr << "End:\n";
+    End->PrintAST(NumIndents + 2);
+
+    PrintIndents(NumIndents + 1);
+    std::cerr << "Body:\n";
+    Body->PrintAST(NumIndents + 2);
+
+    PrintIndents(NumIndents);
+    std::cerr << "End For Statement\n";
 }
 
 void VariableAssignmentAST::PrintAST(int NumIndents) {

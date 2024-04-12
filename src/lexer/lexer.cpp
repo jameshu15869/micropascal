@@ -66,6 +66,15 @@ int gettok() {
         if (IdentifierStr == "else") {
             return tok_else;
         }
+        if (IdentifierStr == "for") {
+            return tok_for;
+        }
+        if (IdentifierStr == "to") {
+            return tok_to;
+        }
+        if (IdentifierStr == "do") {
+            return tok_do;
+        }
 
         return tok_identifier;
     }

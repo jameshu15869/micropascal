@@ -227,6 +227,72 @@ class GenIRVisitor : public ASTVisitor {
         // Since we don't treat if/else as value exprs, we don't need a PHI node
     }
 
+    virtual void Visit(ForStatementAST &S) override {
+        S.GetStart().Accept(*this);
+        Value *StartV = V;
+        if (!StartV) {
+            LogError("Failed to codegen start");
+            return;
+        }
+
+        Function *TheFunction = Builder.GetInsertBlock()->getParent();
+        BasicBlock *PreheaderBB = Builder.GetInsertBlock();
+        BasicBlock *LoopBB =
+            BasicBlock::Create(TheModule->getContext(), "loop", TheFunction);
+
+        // go to loop from the current block if nothing else happens
+        Builder.CreateBr(LoopBB);
+
+        Builder.SetInsertPoint(LoopBB);
+
+        // represents the loop variable that will be incremented
+        PHINode *Variable = Builder.CreatePHI(Int64Ty, 2, S.GetVarName());
+        Variable->addIncoming(StartV, PreheaderBB);
+
+        Value *OldVal = NamedValues[S.GetVarName()];
+        NamedValues[S.GetVarName()] = Variable;
+
+        S.GetBody().Accept(*this);
+        if (!V) {
+            LogError("Error generating body code in for loop");
+            return;
+        }
+
+        // Pascal has a default step size of 1 for "for ... to do" loops
+        Value *StepV = ConstantInt::get(Int64Ty, 1);
+
+        Value *NextVar = Builder.CreateNSWAdd(Variable, StepV, "nextvar");
+
+        S.GetEnd().Accept(*this);
+        if (!V) {
+            LogError("Failed to codegen end cond");
+            return;
+        }
+
+        Value *EndCond = V;
+        EndCond = Builder.CreateICmpNE(Variable, EndCond, "loopcond");
+
+        BasicBlock *LoopEndBB = Builder.GetInsertBlock();
+        BasicBlock *AfterBB = BasicBlock::Create(TheModule->getContext(),
+                                                 "afterloop", TheFunction);
+
+        // if end cond is NOT true (Since we do CmpNE), go to loop. else, go to
+        // after
+        Builder.CreateCondBr(EndCond, LoopBB, AfterBB);
+
+        Builder.SetInsertPoint(AfterBB);
+
+        Variable->addIncoming(NextVar, LoopEndBB);
+
+        if (OldVal) {
+            NamedValues[S.GetVarName()] = OldVal;
+        } else {
+            NamedValues.erase(S.GetVarName());
+        }
+
+        return;
+    }
+
     virtual void Visit(VariableAssignmentAST &S) override {
         assert(false && "NOT IMPLEMENTED: Visit VariableAssignmentAST");
     }
@@ -385,7 +451,8 @@ void CodeGen::CompileAndRun(std::unique_ptr<AST> Ast,
     GenIRVisitor GenIR(M.get(), std::move(FPM), std::move(LAM), std::move(FAM),
                        std::move(CGAM), std::move(MAM), std::move(PIC),
                        std::move(SI));
-    std::cerr << "============================   IR   ============================\n";
+    std::cerr
+        << "============================   IR   ============================\n";
     GenIR.run(std::move(Ast));
     // M->print(outs(), nullptr);
 
@@ -399,7 +466,8 @@ void CodeGen::CompileAndRun(std::unique_ptr<AST> Ast,
     auto ExprSymbol = ExitOnErr(TheJIT.lookup("toylang_main"));
 
     std::cerr << "\n";
-    std::cerr << "============================ Result ============================\n";
+    std::cerr
+        << "============================ Result ============================\n";
     // Execute the main function
     void (*FP)() = ExprSymbol.getAddress().toPtr<void (*)()>();
     FP();

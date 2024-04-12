@@ -19,6 +19,7 @@ class BinaryExprAST;
 class CallExprAST;
 class StatementCallExprAST;
 class IfStatementAST;
+class ForStatementAST;
 class VariableAssignmentAST;
 class VariableDeclAST;
 class PrototypeAST;
@@ -39,6 +40,7 @@ class ASTVisitor {
     virtual void Visit(CallExprAST &) = 0;
     virtual void Visit(StatementCallExprAST &) = 0;
     virtual void Visit(IfStatementAST &) = 0;
+    virtual void Visit(ForStatementAST &) = 0;
     virtual void Visit(VariableAssignmentAST &) = 0;
     virtual void Visit(VariableDeclAST &) = 0;
     virtual void Visit(PrototypeAST &) = 0;
@@ -162,6 +164,27 @@ class IfStatementAST : public StatementAST {
     StatementAST &GetThen() const { return *Then; }
     const bool HasElse() const { return Else ? true : false; }
     StatementAST &GetElse() const { return *Else; }
+};
+
+class ForStatementAST : public StatementAST {
+    std::string VarName;
+    std::unique_ptr<ExprAST> Start, End;
+    std::unique_ptr<CompoundStatementAST> Body;
+
+   public:
+    ForStatementAST(std::string &VarName, std::unique_ptr<ExprAST> Start,
+                    std::unique_ptr<ExprAST> End,
+                    std::unique_ptr<CompoundStatementAST> Body)
+        : VarName(VarName),
+          Start(std::move(Start)),
+          End(std::move(End)),
+          Body(std::move(Body)) {}
+    const std::string &GetVarName() const { return VarName; }
+    ExprAST &GetStart() const { return *Start; }
+    ExprAST &GetEnd() const { return *End; }
+    CompoundStatementAST &GetBody() const { return *Body; }
+    virtual void Accept(ASTVisitor &Visitor) override { Visitor.Visit(*this); }
+    void PrintAST(int NumIndents) override;
 };
 
 class VariableAssignmentAST : public StatementAST {

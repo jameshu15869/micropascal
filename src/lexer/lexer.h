@@ -20,6 +20,9 @@ enum Token {
     tok_if,
     tok_then,
     tok_else,
+    tok_for,
+    tok_to,
+    tok_do,
 
     // types
     tok_real,
