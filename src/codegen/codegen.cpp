@@ -31,7 +31,7 @@ class GenIRVisitor : public ASTVisitor {
     std::unique_ptr<PassInstrumentationCallbacks> ThePIC;
     std::unique_ptr<StandardInstrumentations> TheSI;
 
-    Type *Int1Ty;
+    Type *Int64Ty;
 
     Value *V;
     Function *F;
@@ -54,7 +54,7 @@ class GenIRVisitor : public ASTVisitor {
           ThePIC(std::move(PIC)),
           TheSI(std::move(SI)),
           Builder(TheModule->getContext()) {
-        Int1Ty = Type::getInt1Ty(TheModule->getContext());
+        Int64Ty = Type::getInt64Ty(TheModule->getContext());
 
         TheSI->registerCallbacks(*ThePIC, TheMAM.get());
 
@@ -80,7 +80,7 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(ConcreteBoolExprAST &E) override {
-        V = ConstantInt::get(Int1Ty, E.GetVal());
+        V = ConstantInt::get(Int64Ty, E.GetVal());
     }
 
     virtual void Visit(VariableExprAST &E) override {
@@ -179,7 +179,52 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(IfStatementAST &S) override {
-        assert(false && "NOT IMPLEMENTED: Visit IfStatementAST");
+        S.GetCond().Accept(*this);
+        if (!V) {
+            LogError("Failed to codegen cond");
+            return;
+        }
+        Value *CondV = V;
+
+        CondV = Builder.CreateICmpNE(CondV, ConstantInt::get(Int64Ty, 0.0));
+
+        Function *TheFunction = Builder.GetInsertBlock()->getParent();
+
+        BasicBlock *ThenBB =
+            BasicBlock::Create(TheModule->getContext(), "then", TheFunction);
+        BasicBlock *ElseBB =
+            BasicBlock::Create(TheModule->getContext(), "else");
+        BasicBlock *MergeBB =
+            BasicBlock::Create(TheModule->getContext(), "ifcont");
+
+        Builder.CreateCondBr(CondV, ThenBB, ElseBB);
+
+        Builder.SetInsertPoint(ThenBB);
+
+        S.GetThen().Accept(*this);
+        if (!V) {
+            LogError("Failed to codegen then clause");
+            return;
+        }
+        Builder.CreateBr(MergeBB);
+        // Then block may have changed after codegen
+        ThenBB = Builder.GetInsertBlock();
+
+        // Emit else
+        TheFunction->insert(TheFunction->end(), ElseBB);
+        Builder.SetInsertPoint(ElseBB);
+
+        if (S.HasElse()) {
+            S.GetElse().Accept(*this);
+        }
+        Builder.CreateBr(MergeBB);
+        ElseBB = Builder.GetInsertBlock();
+
+        // Emit merge block
+        TheFunction->insert(TheFunction->end(), MergeBB);
+        Builder.SetInsertPoint(MergeBB);
+
+        // Since we don't treat if/else as value exprs, we don't need a PHI node
     }
 
     virtual void Visit(VariableAssignmentAST &S) override {
@@ -340,6 +385,7 @@ void CodeGen::CompileAndRun(std::unique_ptr<AST> Ast,
     GenIRVisitor GenIR(M.get(), std::move(FPM), std::move(LAM), std::move(FAM),
                        std::move(CGAM), std::move(MAM), std::move(PIC),
                        std::move(SI));
+    std::cerr << "============================   IR   ============================\n";
     GenIR.run(std::move(Ast));
     // M->print(outs(), nullptr);
 
@@ -353,7 +399,7 @@ void CodeGen::CompileAndRun(std::unique_ptr<AST> Ast,
     auto ExprSymbol = ExitOnErr(TheJIT.lookup("toylang_main"));
 
     std::cerr << "\n";
-    std::cerr << "Execution result:\n";
+    std::cerr << "============================ Result ============================\n";
     // Execute the main function
     void (*FP)() = ExprSymbol.getAddress().toPtr<void (*)()>();
     FP();

@@ -158,6 +158,10 @@ class IfStatementAST : public StatementAST {
         : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
     void PrintAST(int NumIndents) override;
     virtual void Accept(ASTVisitor &Visitor) override { Visitor.Visit(*this); }
+    ExprAST &GetCond() const { return *Cond; }
+    StatementAST &GetThen() const { return *Then; }
+    const bool HasElse() const { return Else ? true : false; }
+    StatementAST &GetElse() const { return *Else; }
 };
 
 class VariableAssignmentAST : public StatementAST {

@@ -28,6 +28,7 @@ void HandleDefinition() {
 void HandleProgram() {
     if (auto P = ParseProgram()) {
         fprintf(stderr, "Parsed a program.\n");
+        std::cerr << "============================   AST  ============================\n";
         P->PrintAST(0);
         std::cerr << "\n";
         CodeGen CG;
