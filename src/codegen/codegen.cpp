@@ -454,7 +454,7 @@ class GenIRVisitor : public ASTVisitor {
         FunctionType *MainFT = FunctionType::get(
             Type::getVoidTy(TheModule->getContext()), {}, false);
         Function *MainFn = Function::Create(MainFT, Function::ExternalLinkage,
-                                            "toylang_main", TheModule);
+                                            "micropascal_main", TheModule);
         BasicBlock *BB =
             BasicBlock::Create(TheModule->getContext(), "entry", MainFn);
 
@@ -474,7 +474,7 @@ class GenIRVisitor : public ASTVisitor {
 void CodeGen::CompileAndRun(std::unique_ptr<AST> Ast,
                             llvm::orc::KaleidoscopeJIT &TheJIT) {
     std::unique_ptr<LLVMContext> TheContext = std::make_unique<LLVMContext>();
-    M = std::make_unique<Module>("toy-lang.tl", *TheContext);
+    M = std::make_unique<Module>("micropascal.tl", *TheContext);
 
     M->setDataLayout(TheJIT.getDataLayout());
 
@@ -508,7 +508,7 @@ void CodeGen::CompileAndRun(std::unique_ptr<AST> Ast,
     llvm::ExitOnError ExitOnErr;
     ExitOnErr(TheJIT.addModule(std::move(TSM), RT));
 
-    auto ExprSymbol = ExitOnErr(TheJIT.lookup("toylang_main"));
+    auto ExprSymbol = ExitOnErr(TheJIT.lookup("micropascal_main"));
 
     std::cerr << "\n";
     std::cerr

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20.0)
-project(ToyLang)
+project(MicroPascal)
 
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
