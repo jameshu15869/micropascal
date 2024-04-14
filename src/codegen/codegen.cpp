@@ -35,7 +35,7 @@ class GenIRVisitor : public ASTVisitor {
 
     Value *V;
     Function *F;
-    std::map<std::string, Value *> NamedValues;
+    std::map<std::string, AllocaInst *> NamedValues;
 
    public:
     GenIRVisitor(Module *M, std::unique_ptr<FunctionPassManager> FPM,
@@ -69,6 +69,13 @@ class GenIRVisitor : public ASTVisitor {
         PB.crossRegisterProxies(*TheLAM, *TheFAM, *TheCGAM, *TheMAM);
     }
 
+    AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
+                                       const std::string &VarName) {
+        IRBuilder<> TmpBuilder(&TheFunction->getEntryBlock(),
+                               TheFunction->getEntryBlock().begin());
+        return TmpBuilder.CreateAlloca(Int64Ty, nullptr, VarName);
+    }
+
     void run(std::unique_ptr<AST> Ast) {
         Ast->Accept(*this);
         TheModule->print(errs(), nullptr);
@@ -84,13 +91,13 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(VariableExprAST &E) override {
-        Value *Val = NamedValues[E.GetName()];
-        if (!Val) {
+        AllocaInst *A = NamedValues[E.GetName()];
+        if (!A) {
             LogError("Unknown variable");
             return;
         }
 
-        V = Val;
+        V = Builder.CreateLoad(A->getAllocatedType(), A, E.GetName().c_str());
     }
 
     virtual void Visit(BinaryExprAST &E) override {
@@ -231,6 +238,11 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(ForStatementAST &S) override {
+        Function *TheFunction = Builder.GetInsertBlock()->getParent();
+
+        AllocaInst *Alloca =
+            CreateEntryBlockAlloca(TheFunction, S.GetVarName());
+
         S.GetStart().Accept(*this);
         Value *StartV = V;
         if (!StartV) {
@@ -238,8 +250,9 @@ class GenIRVisitor : public ASTVisitor {
             return;
         }
 
-        Function *TheFunction = Builder.GetInsertBlock()->getParent();
-        BasicBlock *PreheaderBB = Builder.GetInsertBlock();
+        // store the start variable value into alloca
+        Builder.CreateStore(StartV, Alloca);
+
         BasicBlock *LoopBB =
             BasicBlock::Create(TheModule->getContext(), "loop", TheFunction);
 
@@ -248,12 +261,9 @@ class GenIRVisitor : public ASTVisitor {
 
         Builder.SetInsertPoint(LoopBB);
 
-        // represents the loop variable that will be incremented
-        PHINode *Variable = Builder.CreatePHI(Int64Ty, 2, S.GetVarName());
-        Variable->addIncoming(StartV, PreheaderBB);
-
-        Value *OldVal = NamedValues[S.GetVarName()];
-        NamedValues[S.GetVarName()] = Variable;
+        // load the new value and shadow the old value
+        AllocaInst *OldAlloca = NamedValues[S.GetVarName()];
+        NamedValues[S.GetVarName()] = Alloca;
 
         S.GetBody().Accept(*this);
         if (!V) {
@@ -264,18 +274,20 @@ class GenIRVisitor : public ASTVisitor {
         // Pascal has a default step size of 1 for "for ... to do" loops
         Value *StepV = ConstantInt::get(Int64Ty, 1);
 
-        Value *NextVar = Builder.CreateNSWAdd(Variable, StepV, "nextvar");
-
         S.GetEnd().Accept(*this);
         if (!V) {
             LogError("Failed to codegen end cond");
             return;
         }
-
         Value *EndCond = V;
-        EndCond = Builder.CreateICmpSGT(Variable, EndCond, "loopcond");
 
-        BasicBlock *LoopEndBB = Builder.GetInsertBlock();
+        Value *CurVar = Builder.CreateLoad(Alloca->getAllocatedType(), Alloca,
+                                           S.GetVarName().c_str());
+        Value *NextVar = Builder.CreateNSWAdd(CurVar, StepV, "nextvar");
+        Builder.CreateStore(NextVar, Alloca);
+
+        EndCond = Builder.CreateICmpSLT(CurVar, EndCond, "loopcond");
+
         BasicBlock *AfterBB = BasicBlock::Create(TheModule->getContext(),
                                                  "afterloop", TheFunction);
 
@@ -285,10 +297,8 @@ class GenIRVisitor : public ASTVisitor {
 
         Builder.SetInsertPoint(AfterBB);
 
-        Variable->addIncoming(NextVar, LoopEndBB);
-
-        if (OldVal) {
-            NamedValues[S.GetVarName()] = OldVal;
+        if (OldAlloca) {
+            NamedValues[S.GetVarName()] = OldAlloca;
         } else {
             NamedValues.erase(S.GetVarName());
         }
@@ -297,11 +307,35 @@ class GenIRVisitor : public ASTVisitor {
     }
 
     virtual void Visit(VariableAssignmentAST &S) override {
-        assert(false && "NOT IMPLEMENTED: Visit VariableAssignmentAST");
+        S.GetValue().Accept(*this);
+        Value *Val = V;
+        if (!Val) {
+            LogError("Failed to codegen expression in assignment");
+            return;
+        }
+
+        Value *Variable = NamedValues[S.GetVarName()];
+        if (!Variable) {
+            LogError("Unknown variable");
+            return;
+        }
+        Builder.CreateStore(Val, Variable);
     }
 
     virtual void Visit(VariableDeclAST &S) override {
-        assert(false && "NOT IMPLEMENTED: Visit VariableDeclAST");
+        std::vector<AllocaInst *> OldBindings;
+
+        Function *F = Builder.GetInsertBlock()->getParent();
+
+        for (int i = 0; i < S.GetVarNames().size(); i++) {
+            const std::string &VarName = S.GetVarNames()[i];
+            Value *InitVal = ConstantInt::get(Int64Ty, 0, true);
+
+            AllocaInst *Alloca = CreateEntryBlockAlloca(F, VarName);
+            Builder.CreateStore(InitVal, Alloca);
+            OldBindings.push_back(NamedValues[VarName]);
+            NamedValues[VarName] = Alloca;
+        }
     }
 
     virtual void Visit(PrototypeAST &P) override {
@@ -383,7 +417,12 @@ class GenIRVisitor : public ASTVisitor {
         Builder.SetInsertPoint(BB);
         NamedValues.clear();
         for (auto &Arg : TheFunction->args()) {
-            NamedValues[std::string(Arg.getName())] = &Arg;
+            AllocaInst *Alloca =
+                CreateEntryBlockAlloca(TheFunction, Arg.getName().str());
+
+            Builder.CreateStore(&Arg, Alloca);
+
+            NamedValues[std::string(Arg.getName())] = Alloca;
         }
 
         Func.GetBody().Accept(*this);

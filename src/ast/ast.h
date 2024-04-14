@@ -197,6 +197,8 @@ class VariableAssignmentAST : public StatementAST {
 
     void PrintAST(int NumIndents) override;
     virtual void Accept(ASTVisitor &Visitor) override { Visitor.Visit(*this); }
+    ExprAST &GetValue() const { return *Value; }
+    const std::string &GetVarName() const { return VarName; }
 };
 
 class VariableDeclAST : public AST {
