@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "codegen/codegen.h"
 #include "kaleidoscopejit/KaleidoscopeJIT.h"
 #include "lexer/lexer.h"
@@ -17,20 +15,8 @@ extern "C" void writeln(int64_t v) {
     fprintf(stderr, "\n");
 }
 
-void HandleDefinition() {
-    if (ParseDefinition()) {
-        fprintf(stderr, "Parsed a function definition.\n");
-    } else {
-        getNextToken();
-    }
-}
-
 void HandleProgram() {
     if (auto P = ParseProgram()) {
-        fprintf(stderr, "Parsed a program.\n");
-        std::cerr << "============================   AST  ============================\n";
-        P->PrintAST(0);
-        std::cerr << "\n";
         CodeGen CG;
         CG.CompileAndRun(std::move(P), *TheJIT);
     } else {
@@ -38,19 +24,8 @@ void HandleProgram() {
     }
 }
 
-void HandleTopLevelExpression() {
-    if (auto E = ParseTopLevelExpr()) {
-        E->PrintAST(0);
-        std::cerr << "\n";
-        fprintf(stderr, "Parsed a top-level expr\n");
-    } else {
-        getNextToken();
-    }
-}
-
 void MainLoop() {
     while (true) {
-        fprintf(stderr, "ready> ");
         switch (CurTok) {
             case tok_eof:
                 return;
@@ -58,15 +33,13 @@ void MainLoop() {
             case tok_period:  // top level period
                 getNextToken();
                 break;
-            case tok_def:
-                HandleDefinition();
-                break;
             case tok_program:
                 HandleProgram();
                 break;
             default:
-                HandleTopLevelExpression();
+                break;
         }
+        fprintf(stderr, "ready> ");
     }
 }
 

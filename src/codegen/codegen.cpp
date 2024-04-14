@@ -31,7 +31,7 @@ class GenIRVisitor : public ASTVisitor {
     std::unique_ptr<PassInstrumentationCallbacks> ThePIC;
     std::unique_ptr<StandardInstrumentations> TheSI;
 
-    Type *Int64Ty;
+    Type *Int64Ty, *Int1Ty;
 
     Value *V;
     Function *F;
@@ -54,6 +54,7 @@ class GenIRVisitor : public ASTVisitor {
           ThePIC(std::move(PIC)),
           TheSI(std::move(SI)),
           Builder(TheModule->getContext()) {
+        Int1Ty = Type::getInt1Ty(TheModule->getContext());
         Int64Ty = Type::getInt64Ty(TheModule->getContext());
 
         TheSI->registerCallbacks(*ThePIC, TheMAM.get());
@@ -196,7 +197,7 @@ class GenIRVisitor : public ASTVisitor {
         }
         Value *CondV = V;
 
-        CondV = Builder.CreateICmpNE(CondV, ConstantInt::get(Int64Ty, 0.0));
+        CondV = Builder.CreateICmpNE(CondV, ConstantInt::get(Int1Ty, 0.0));
 
         Function *TheFunction = Builder.GetInsertBlock()->getParent();
 
@@ -376,9 +377,7 @@ class GenIRVisitor : public ASTVisitor {
 
     virtual void Visit(DeclarationAST &D) override {
         for (auto &VarDecl : D.GetVarDeclarations()) {
-            for (auto Name : VarDecl->GetVarNames()) {
-                NamedValues[Name] = nullptr;
-            }
+            VarDecl->Accept(*this);
         }
     }
 
